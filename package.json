@@ -1,0 +1,10 @@
+{
+  "name": "farms",
+  "version": "1.0.0",
+  "description": "A set of smart contracts that manage yield farming and Reptile finance token",
+  "main": "index.js",
+  "repository": "https://github.com/reptile-finance/farms.git",
+  "author": "crotalus",
+  "license": "MIT",
+  "private": false
+}

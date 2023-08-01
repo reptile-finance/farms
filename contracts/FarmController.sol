@@ -116,7 +116,7 @@ contract FarmController is Ownable {
                 1e12 -
                 user.rewardDebt;
             if (pending > 0) {
-                safeCakeTransfer(msg.sender, pending);
+                safeTokenTransfer(msg.sender, pending);
             }
         }
 
@@ -145,7 +145,7 @@ contract FarmController is Ownable {
                 1e12 -
                 user.rewardDebt;
             if (pending > 0) {
-                safeCakeTransfer(msg.sender, pending);
+                safeTokenTransfer(msg.sender, pending);
             }
         }
 
@@ -161,7 +161,7 @@ contract FarmController is Ownable {
         user.rewardDebt = (user.amount * pool.accCakePerShare) / 1e12;
     }
 
-    function safeCakeTransfer(address _to, uint256 _amount) internal {
+    function safeTokenTransfer(address _to, uint256 _amount) internal {
         uint256 cakeBal = token.balanceOf(address(this));
         if (_amount > cakeBal) {
             token.transfer(_to, cakeBal);

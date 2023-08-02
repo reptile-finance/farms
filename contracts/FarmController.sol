@@ -11,7 +11,7 @@ contract FarmController is Ownable {
 
     PoolInfo[] public poolInfo;
 
-    mapping(address => UserInfo) public usersInfo;
+    mapping(uint256 => mapping(address => UserInfo)) public usersInfo;
 
     uint256 totalAllocatedPoints;
 
@@ -109,7 +109,7 @@ contract FarmController is Ownable {
 
         mintPoolRewards(poolId);
 
-        UserInfo memory user = usersInfo[msg.sender];
+        UserInfo memory user = usersInfo[poolId][msg.sender];
 
         if (user.amount > 0) {
             uint256 pending = (user.amount * pool.accCakePerShare) /
@@ -138,7 +138,7 @@ contract FarmController is Ownable {
 
         mintPoolRewards(poolId);
 
-        UserInfo memory user = usersInfo[msg.sender];
+        UserInfo memory user = usersInfo[poolId][msg.sender];
 
         if (user.amount > 0) {
             uint256 pending = (user.amount * pool.accCakePerShare) /

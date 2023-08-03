@@ -9,6 +9,7 @@
   "private": false,
   "dependencies": {
     "@openzeppelin/contracts": "^4.9.2",
+    "@typechain/ethers-v5": "^11.1.1",
     "hardhat": "^2.17.0"
   },
   "devDependencies": {
@@ -17,8 +18,8 @@
     "@nomicfoundation/hardhat-network-helpers": "^1.0.0",
     "@nomicfoundation/hardhat-toolbox": "^3.0.0",
     "@nomicfoundation/hardhat-verify": "^1.0.0",
-    "@typechain/ethers-v6": "^0.4.0",
-    "@typechain/hardhat": "^8.0.0",
+    "@typechain/ethers-v6": "^0.4.3",
+    "@typechain/hardhat": "^8.0.3",
     "@types/chai": "^4.2.0",
     "@types/mocha": ">=9.1.0",
     "@types/node": ">=16.0.0",
@@ -27,7 +28,7 @@
     "hardhat-gas-reporter": "^1.0.8",
     "solidity-coverage": "^0.8.0",
     "ts-node": ">=8.0.0",
-    "typechain": "^8.1.0",
+    "typechain": "^8.3.1",
     "typescript": ">=4.5.0"
   }
 }

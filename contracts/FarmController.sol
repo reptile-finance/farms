@@ -80,7 +80,7 @@ contract FarmController is Ownable {
     }
 
     function mintPoolRewards(uint256 poolId) internal {
-        PoolInfo memory pool = poolInfo[poolId];
+        PoolInfo storage pool = poolInfo[poolId];
 
         // If accrueable period haven't been reached
         if (block.number <= pool.lastRewardBlock) return;
@@ -105,11 +105,11 @@ contract FarmController is Ownable {
 
     function deposit(uint poolId, uint256 amount) external {
         require(poolId < poolInfo.length, "FarmController: pool doesn't exist");
-        PoolInfo memory pool = poolInfo[poolId];
+        PoolInfo storage pool = poolInfo[poolId];
 
         mintPoolRewards(poolId);
 
-        UserInfo memory user = usersInfo[poolId][msg.sender];
+        UserInfo storage user = usersInfo[poolId][msg.sender];
 
         if (user.amount > 0) {
             uint256 pending = (user.amount * pool.accCakePerShare) /
@@ -134,11 +134,11 @@ contract FarmController is Ownable {
 
     function withdraw(uint poolId, uint256 amount) external {
         require(poolId < poolInfo.length, "FarmController: pool doesn't exist");
-        PoolInfo memory pool = poolInfo[poolId];
+        PoolInfo storage pool = poolInfo[poolId];
 
         mintPoolRewards(poolId);
 
-        UserInfo memory user = usersInfo[poolId][msg.sender];
+        UserInfo storage user = usersInfo[poolId][msg.sender];
 
         if (user.amount > 0) {
             uint256 pending = (user.amount * pool.accCakePerShare) /
@@ -150,11 +150,7 @@ contract FarmController is Ownable {
         }
 
         if (amount > 0) {
-            pool.lpToken.transferFrom(
-                address(this),
-                address(msg.sender),
-                amount
-            );
+            pool.lpToken.transfer(address(msg.sender), amount);
             user.amount += amount;
         }
 

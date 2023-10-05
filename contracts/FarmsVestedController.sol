@@ -20,16 +20,15 @@ contract FarmVestedController is Ownable {
     uint256 totalAllocatedPoints;
 
     struct PoolInfo {
-        ERC20 lpToken;
-        uint256 vestedBlocks;
+        ERC20   lpToken;
         uint256 allocPoint;
         uint256 lastRewardBlock;
         uint256 accCakePerShare;
+        uint256 unlockBlock;
     }
 
     struct NftInfo {
         uint256 amount;
-        uint256 unlockBlock;
         uint256 rewardDebt;
     }
 
@@ -45,7 +44,7 @@ contract FarmVestedController is Ownable {
         startBlock = _startBlock;
     }
 
-    function addPool(address pool, uint256 allocPoint, uint256 vestedBlocks) external onlyOwner {
+    function addPool(address pool, uint256 allocPoint, uint256 unlockBlock) external onlyOwner {
         uint256 lastRewardBlock = block.number > startBlock
             ? block.number
             : startBlock;
@@ -55,10 +54,10 @@ contract FarmVestedController is Ownable {
         poolInfo.push(
             PoolInfo({
                 lpToken: ERC20(pool),
-                vestedBlocks: vestedBlocks,
                 allocPoint: allocPoint,
                 lastRewardBlock: lastRewardBlock,
-                accCakePerShare: 0
+                accCakePerShare: 0,
+                unlockBlock: unlockBlock
             })
         );
     }
@@ -66,7 +65,7 @@ contract FarmVestedController is Ownable {
     function updatePool(
         uint256 _pid,
         uint256 _allocPoint,
-        uint256 _vestedBlocks,
+        uint256 _unlockBlock,
         bool _withUpdate
     ) external onlyOwner {
         if (_withUpdate) {
@@ -81,7 +80,7 @@ contract FarmVestedController is Ownable {
             prevAllocatedPoints;
 
         poolInfo[_pid].allocPoint = _allocPoint;
-        poolInfo[_pid].vestedBlocks = _vestedBlocks;
+        poolInfo[_pid].unlockBlock = _unlockBlock;
     }
 
     function mintAllPoolRewards() internal {
@@ -114,7 +113,6 @@ contract FarmVestedController is Ownable {
 
         pool.accCakePerShare += (accruedRewards * 1e12) / lpSupply;
 
-
         pool.lastRewardBlock = block.number;
     }
 
@@ -124,6 +122,8 @@ contract FarmVestedController is Ownable {
 
         PoolInfo storage pool = poolInfo[poolId];
 
+        require(block.number <= pool.unlockBlock , "FarmController: pool is finished");
+    
         mintPoolRewards(poolId);
         
         pool.lpToken.transferFrom(
@@ -136,7 +136,6 @@ contract FarmVestedController is Ownable {
         
         nftsInfo[poolId][nftId] = NftInfo({
             amount: amount,
-            unlockBlock: block.number + pool.vestedBlocks,
             rewardDebt: (amount * pool.accCakePerShare) / 1e12
         });
 
@@ -146,14 +145,14 @@ contract FarmVestedController is Ownable {
         require(poolId < poolInfo.length, "FarmController: pool doesn't exist");
         PoolInfo storage pool = poolInfo[poolId];
 
+        require(pool.unlockBlock <= block.number, "FarmController: pool is locked");
+
         mintPoolRewards(poolId);
 
         NftInfo storage nftInfo = nftsInfo[poolId][nftId];
 
         require(nftInfo.amount > 0, "FarmController: nft does not exist");
     
-        require(nftInfo.unlockBlock <= block.number, "FarmController: nft is locked");
-
 
         uint256 pending = (nftInfo.amount * pool.accCakePerShare) /
                 1e12 -

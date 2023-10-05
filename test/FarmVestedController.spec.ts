@@ -33,14 +33,14 @@ describe("FarmVestedController", () => {
 
   describe("Pools Management", () => {
     it("Correctly initialises `addPool`", async () => {
-      const vestedBlocks = 1;
+      const unlockBlock = 10000;
       const ALLOC_POINT = 1;
       const mintableToken = await ethers
         .getContractFactory("MintableToken")
         .then((cf) => cf.deploy());
       const mintableTokenAddress = await mintableToken.getAddress();
 
-      await farmVestedController.addPool(mintableTokenAddress, vestedBlocks, ALLOC_POINT);
+      await farmVestedController.addPool(mintableTokenAddress, ALLOC_POINT, unlockBlock);
 
       const poolInfo = await farmVestedController.poolInfo(0);
 
@@ -48,7 +48,7 @@ describe("FarmVestedController", () => {
       expect(poolInfo.lpToken).eq(mintableTokenAddress);
       expect(poolInfo.accCakePerShare).eq(0);
       expect(poolInfo.allocPoint).eq(ALLOC_POINT);
-      expect(poolInfo.vestedBlocks).eq(vestedBlocks);
+      expect(poolInfo.unlockBlock).eq(unlockBlock);
     });
 
     it("Correctly updates `updatePool (no rewards update)`", async () => {
@@ -62,14 +62,14 @@ describe("FarmVestedController", () => {
       await farmVestedController.addPool(mintableTokenAddress, vestedBlocks, ALLOC_POINT);
 
       const NEW_ALLOC_POINT = 2;
-      const NEW_VESTED_BLOCKS = 2;
+      const NEW_UNLOCK_BLOCK = 9000;
 
-      await farmVestedController.updatePool(0, NEW_ALLOC_POINT, NEW_VESTED_BLOCKS, false);
+      await farmVestedController.updatePool(0, NEW_ALLOC_POINT, NEW_UNLOCK_BLOCK, false);
 
       const poolInfo = await farmVestedController.poolInfo(0);
 
       expect(poolInfo.allocPoint).eq(NEW_ALLOC_POINT);
-      expect(poolInfo.vestedBlocks).eq(NEW_VESTED_BLOCKS);
+      expect(poolInfo.unlockBlock).eq(NEW_UNLOCK_BLOCK);
     });
   });
 
@@ -77,7 +77,7 @@ describe("FarmVestedController", () => {
 
     let lpToken: MintableToken;
     let lpTokenAddress;
-    const vestedBlocks = 1;
+    const unlockBlock = START_BLOCK + 10000;
     beforeEach(async () => {
       const ALLOC_POINT = 1;
 
@@ -87,9 +87,7 @@ describe("FarmVestedController", () => {
       
       lpTokenAddress = await lpToken.getAddress();
 
-      await farmVestedController.addPool(lpTokenAddress, vestedBlocks, ALLOC_POINT);
-
-
+      await farmVestedController.addPool(lpTokenAddress, ALLOC_POINT, unlockBlock);
     });
 
     it("Fail if pool does not exist", async () => {
@@ -111,8 +109,8 @@ describe("FarmVestedController", () => {
 
       await lpToken.approve(farmVestedController.getAddress(), 100);
 
-      const currentBlock = await getCurrentBlock();
-      const transaction = await farmVestedController.deposit(0, 100);
+      
+      await farmVestedController.deposit(0, 100);
 
       expect(await nft.balanceOf(accountAddress)).to.be.equal(1);
       expect(await lpToken.balanceOf(accountAddress)).to.be.equal(0);
@@ -120,14 +118,25 @@ describe("FarmVestedController", () => {
       const nftId = await nft.latestTokenId();
 
       expect((await farmVestedController.nftsInfo(0, nftId)).rewardDebt).to.be.equal(0);
-      expect((await farmVestedController.nftsInfo(0, nftId)).unlockBlock).to.be.equal(currentBlock + vestedBlocks + 1);
+    });
+
+    it("fail if pool is finished", async () => {
+      const accountAddress = (await ethers.getSigners())[0].address;
+
+      await lpToken.mint(accountAddress, 100);
+
+      await lpToken.approve(farmVestedController.getAddress(), 100);
+
+      await mineToBlock(unlockBlock + 1);
+
+      await expect(farmVestedController.deposit(0, 100)).to.be.revertedWith("FarmController: pool is finished");
     });
   });
 
   describe("Withdraw", () => {
     let lpToken: MintableToken;
     let lpTokenAddress;
-    const vestedBlocks = 10;
+    const unlockBlock = START_BLOCK + 10000;
     beforeEach(async () => {
       const ALLOC_POINT = 1;
 
@@ -137,7 +146,7 @@ describe("FarmVestedController", () => {
       
       lpTokenAddress = await lpToken.getAddress();
 
-      await farmVestedController.addPool(lpTokenAddress, ALLOC_POINT, vestedBlocks);
+      await farmVestedController.addPool(lpTokenAddress, ALLOC_POINT, unlockBlock);
 
       await mineToBlock(START_BLOCK);
     });
@@ -146,22 +155,22 @@ describe("FarmVestedController", () => {
       await expect(farmVestedController.deposit(1, 1)).to.be.revertedWith("FarmController: pool doesn't exist");
     });
 
-    it("Fails if NFT is locked", async () => {
+    it("Fails if pool is locked", async () => {
       const accountAddress = (await ethers.getSigners())[0].address;
 
       await lpToken.mint(accountAddress, 100);
 
       await lpToken.approve(farmVestedController.getAddress(), 100);
 
-      const currentBlock = await getCurrentBlock();
+
       await farmVestedController.deposit(0, 100);
 
       const nftId = await nft.latestTokenId();
 
-      await mineToBlock(currentBlock + vestedBlocks - 2);
+      await mineToBlock(unlockBlock - 3);
 
       await nft.approve(farmVestedController.getAddress(), nftId);
-      await expect(farmVestedController.withdraw(0, nftId)).to.be.revertedWith("FarmController: nft is locked");
+      await expect(farmVestedController.withdraw(0, nftId)).to.be.revertedWith("FarmController: pool is locked");
     });
 
     it("Withdraw correctly and burn NFT", async () => {
@@ -172,23 +181,22 @@ describe("FarmVestedController", () => {
 
       await lpToken.approve(farmVestedController.getAddress(), 100);
 
-      const currentBlock = await getCurrentBlock();
+      const prevDepositBlock = await getCurrentBlock();
       await farmVestedController.deposit(0, 100);
 
       const nftId = await nft.latestTokenId();
 
-      await mineToBlock(currentBlock + vestedBlocks - 1);
+      await mineToBlock(unlockBlock + 1);
 
       await nft.approve(farmVestedController.getAddress(), nftId);
+
+      const postDepositBlock = await getCurrentBlock();
       await farmVestedController.withdraw(0, nftId);
 
       expect(await nft.balanceOf(accountAddress)).to.be.equal(0);
       expect(await lpToken.balanceOf(accountAddress)).to.be.equal(100);
       expect(await lpToken.balanceOf(farmVestedController.getAddress())).to.be.equal(0);
-      expect(await token.balanceOf(accountAddress)).to.be.equal(TOTAL_REWARD_PER_BLOCK * vestedBlocks);
-
-      expect((await farmVestedController.nftsInfo(0, nftId)).rewardDebt).to.be.equal(0);
-      expect((await farmVestedController.nftsInfo(0, nftId)).unlockBlock).to.be.equal(currentBlock + vestedBlocks + 1);
+      expect(await token.balanceOf(accountAddress)).to.be.equal(TOTAL_REWARD_PER_BLOCK * (postDepositBlock - prevDepositBlock));
     });
 
   });

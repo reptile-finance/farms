@@ -126,7 +126,7 @@ contract FarmController is Ownable {
                 address(this),
                 amount
             );
-            user.amount += amount;
+            user.amount -= amount;
         }
 
         user.rewardDebt = (user.amount * pool.accCakePerShare) / 1e12;
